@@ -1,9 +1,9 @@
 mod utils {
     // This defines a function by means of a lambda expression that
-    // computes the sum of an array of values.
-    let sum = |len, arr| match len { 0 => 0, _ => arr[len - 1] + sum(len - 1, arr) };
+    // computes the sum of an array of values. We fully specify its type.
+    let sum: int, int[] -> int = |len, arr| match len { 0 => 0, _ => arr[len - 1] + sum(len - 1, arr) };
     // A simple function that returns the input incremented by one.
-    let incremented = |x| x + 1;
+    let incremented: expr -> expr = |x| x + 1;
     // This is a function that takes an expression as input and returns
     // a constraint enforcing this expression increments by a certain value
     // between rows.

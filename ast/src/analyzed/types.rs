@@ -112,6 +112,11 @@ impl Type {
         }
     }
 
+    pub fn substitute_type_vars_to(mut self, substitutions: &HashMap<String, Type>) -> Self {
+        self.substitute_type_vars(substitutions);
+        self
+    }
+
     fn contained_type_vars_with_repetitions(&self) -> Box<dyn Iterator<Item = &String> + '_> {
         match self {
             Type::TypeVar(n) => Box::new(std::iter::once(n)),

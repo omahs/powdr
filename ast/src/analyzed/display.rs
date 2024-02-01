@@ -304,7 +304,11 @@ impl Display for AlgebraicReference {
 
 impl Display for PolynomialReference {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        write!(f, "{}", self.name,)
+        write!(f, "{}", self.name)?;
+        if !self.generic_args.is_empty() {
+            write!(f, "::<{}>", self.generic_args.iter().join(", "))?;
+        }
+        Ok(())
     }
 }
 

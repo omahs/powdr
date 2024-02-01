@@ -7,10 +7,10 @@ namespace ConstantInIdentity(%N);
     } };
     col witness x;
 
-    constant %offset = 5;
+    let offset = 5;
 
     ISLAST * (x' - 1) = 0;
 
-    (1-ISLAST) * (x' - x - %offset) = 0;
+    (1-ISLAST) * (x' - x - offset) = 0;
 
     public out = x(%N-1);

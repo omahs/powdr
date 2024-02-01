@@ -4,15 +4,18 @@ use std::fs;
 use std::iter::once;
 use std::path::{Path, PathBuf};
 
+use powdr_ast::analyzed::types::{Type, TypedExpression};
 use powdr_ast::parsed::asm::{AbsoluteSymbolPath, SymbolPath};
+
 use powdr_ast::parsed::{PILFile, PilStatement};
 use powdr_number::{DegreeType, FieldElement};
 
 use powdr_ast::analyzed::{
-    Analyzed, Expression, FunctionValueDefinition, Identity, PublicDeclaration,
-    StatementIdentifier, Symbol,
+    type_from_definition, Analyzed, Expression, FunctionValueDefinition, Identity, IdentityKind,
+    PublicDeclaration, StatementIdentifier, Symbol,
 };
 
+use crate::type_inference::{infer_types, ExpectedType};
 use crate::AnalysisDriver;
 
 use crate::statement_processor::{Counters, PILItem, StatementProcessor};
@@ -20,16 +23,11 @@ use crate::{condenser, evaluator, expression_processor::ExpressionProcessor};
 
 pub fn analyze_file<T: FieldElement>(path: &Path) -> Analyzed<T> {
     let files = import_all_dependencies(path);
-
-    let mut analyzer = PILAnalyzer::new();
-    analyzer.process(files);
-    analyzer.condense()
+    analyze(files)
 }
 
 pub fn analyze_ast<T: FieldElement>(pil_file: PILFile<T>) -> Analyzed<T> {
-    let mut analyzer = PILAnalyzer::new();
-    analyzer.process(vec![pil_file]);
-    analyzer.condense()
+    analyze(vec![pil_file])
 }
 
 pub fn analyze_string<T: FieldElement>(contents: &str) -> Analyzed<T> {
@@ -38,8 +36,14 @@ pub fn analyze_string<T: FieldElement>(contents: &str) -> Analyzed<T> {
         err.output_to_stderr();
         panic!();
     });
+    analyze(vec![pil_file])
+}
 
-    analyze_ast(pil_file)
+fn analyze<T: FieldElement>(files: Vec<PILFile<T>>) -> Analyzed<T> {
+    let mut analyzer = PILAnalyzer::new();
+    analyzer.process(files);
+    analyzer.type_check();
+    analyzer.condense()
 }
 
 #[derive(Default)]
@@ -123,6 +127,81 @@ impl<T: FieldElement> PILAnalyzer<T> {
             for statement in file {
                 self.handle_statement(statement);
             }
+        }
+    }
+
+    pub fn type_check(&mut self) {
+        let mut expressions = vec![];
+        // Collect all definitions with their types and expressions.
+        // For Arrays, we also collect the inner expressions and expect them to be field elements.
+        let definitions = self
+            .definitions
+            .iter_mut()
+            .map(|(name, (symbol, value))| {
+                (
+                    name.clone(),
+                    if let Some(FunctionValueDefinition::Expression(TypedExpression {
+                        type_scheme,
+                        e,
+                    })) = value
+                    {
+                        (type_scheme.clone(), Some(e))
+                    } else {
+                        let type_scheme = type_from_definition(symbol, value);
+
+                        if let Some(FunctionValueDefinition::Array(items)) = value {
+                            // Expect all items in the arrays to be field elements.
+                            expressions.extend(
+                                items
+                                    .iter_mut()
+                                    .flat_map(|item| item.pattern_mut())
+                                    .map(|e| (e, Type::Fe.into())),
+                            );
+                        };
+                        (type_scheme, None)
+                    },
+                )
+            })
+            .collect();
+        // Collect all expressions in identities.
+        for id in &mut self.identities {
+            if id.kind == IdentityKind::Polynomial {
+                // At statement level, we allow constr or constr[].
+                expressions.push((
+                    id.expression_for_poly_id_mut(),
+                    ExpectedType {
+                        ty: Type::Constr,
+                        allow_array: true,
+                    },
+                ));
+            } else {
+                for part in [&mut id.left, &mut id.right] {
+                    if let Some(selector) = &mut part.selector {
+                        expressions.push((selector, Type::Expr.into()))
+                    }
+                    for e in &mut part.expressions {
+                        expressions.push((e, Type::Expr.into()))
+                    }
+                }
+            }
+        }
+
+        let inferred_types = infer_types(definitions, &mut expressions)
+            .map_err(|e| {
+                eprintln!("\nError during type inference:\n{e}");
+                e
+            })
+            .unwrap();
+        // Store the inferred types.
+        for (name, ty) in inferred_types {
+            let Some(FunctionValueDefinition::Expression(TypedExpression {
+                type_scheme: ts @ None,
+                e: _,
+            })) = &mut self.definitions.get_mut(&name).unwrap().1
+            else {
+                panic!()
+            };
+            *ts = Some(ty.into());
         }
     }
 
@@ -415,12 +494,13 @@ namespace N(16);
         assert_eq!(formatted, input);
     }
 
+    // TODO this wants to format as "let c(i) { if (i < 3) { i } else { (i + 9) } };"" which is not valid syntax
     #[test]
     fn if_expr() {
         let input = r#"namespace Assembly(2);
     col fixed A = [0]*;
-    col fixed C(i) { if (i < 3) { Assembly.A(i) } else { (i + 9) } };
-    col fixed D(i) { if Assembly.C(i) { 3 } else { 2 } };
+    let c = |i| if (i < 3) { i } else { (i + 9) };
+    col fixed D(i) { if (Assembly.c(i) != 0) { 3 } else { 2 } };
 "#;
         let formatted = analyze_string::<GoldilocksField>(input).to_string();
         assert_eq!(formatted, input);
@@ -429,7 +509,7 @@ namespace N(16);
     #[test]
     fn symbolic_functions() {
         let input = r#"namespace N(16);
-    let last_row: fe = 15;
+    let last_row: int = 15;
     let ISLAST: col = |i| match i { last_row => 1, _ => 0 };
     let x;
     let y;
@@ -555,7 +635,7 @@ namespace N(16);
     fn expr_and_identity() {
         let input = r#"namespace N(16);
     let f: expr, expr -> constr[] = |x, y| [x = y];
-    let g: expr -> constr[1] = |x| [x = 0];
+    let g: expr -> constr[] = |x| [x = 0];
     let x: col;
     let y: col;
     f(x, y);
@@ -563,7 +643,7 @@ namespace N(16);
     "#;
         let expected = r#"namespace N(16);
     let f: expr, expr -> constr[] = (|x, y| [(x = y)]);
-    let g: expr -> constr[1] = (|x| [(x = 0)]);
+    let g: expr -> constr[] = (|x| [(x = 0)]);
     col witness x;
     col witness y;
     N.x = N.y;
@@ -574,7 +654,7 @@ namespace N(16);
     }
 
     #[test]
-    #[should_panic = "Expected constraint or array of constraints"]
+    #[should_panic = "Expected type constr but got type expr"]
     fn expression_but_expected_constraint() {
         let input = r#"namespace N(16);
     col witness y;
@@ -585,12 +665,28 @@ namespace N(16);
     }
 
     #[test]
-    #[should_panic = "Expected field element but got"] // TODO improve this error message
+    #[should_panic = "Expected type: expr\\nInferred type: constr\\n"]
     fn constraint_but_expected_expression() {
         let input = r#"namespace N(16);
     col witness y;
     { (N.y - 2) = 0 } in { N.y };
 "#;
+        let formatted = analyze_string::<GoldilocksField>(input).to_string();
+        assert_eq!(formatted, input);
+    }
+
+    #[test]
+    #[should_panic = "Set of declared and used type variables are not the same"]
+    fn used_undeclared_type_var() {
+        let input = r#"let x: T = 8;"#;
+        let formatted = analyze_string::<GoldilocksField>(input).to_string();
+        assert_eq!(formatted, input);
+    }
+
+    #[test]
+    #[should_panic = "Set of declared and used type variables are not the same"]
+    fn declared_unused_type_var() {
+        let input = r#"let<T> x: int = 8;"#;
         let formatted = analyze_string::<GoldilocksField>(input).to_string();
         assert_eq!(formatted, input);
     }
