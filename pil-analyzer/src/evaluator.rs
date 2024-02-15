@@ -777,12 +777,12 @@ mod test {
     #[test]
     pub fn fibonacci() {
         let src = r#"namespace Main(16);
-            let fib = |i| match i {
+            let fib: int -> int = |i| match i {
                 0 => 0,
                 1 => 1,
                 _ => fib(i - 1) + fib(i - 2),
             };
-            let result = fib(20);
+            let result: int = fib(20);
         "#;
         assert_eq!(
             parse_and_evaluate_symbol(src, "Main.result"),
@@ -807,26 +807,29 @@ mod test {
     #[test]
     pub fn array_len() {
         let src = r#"
-            constant %N = 2;
-            namespace std::array(%N);
+            let N: int = 2;
+            namespace std::array(N);
             let len = 123;
-            namespace F(%N);
-            let x = std::array::len([1, 2, 3]);
-            let y = std::array::len([]);
+            namespace F(N);
+            let x = std::array::len([1, N, 3]);
+            let empty: int[] = [];
+            let y = std::array::len(empty);
         "#;
         assert_eq!(parse_and_evaluate_symbol(src, "F.x"), "3".to_string());
         assert_eq!(parse_and_evaluate_symbol(src, "F.y"), "0".to_string());
     }
 
     #[test]
-    #[should_panic = r#"FailedAssertion("[1, \"text\"]")"#]
+    #[should_panic = r#"FailedAssertion("this text")"#]
     pub fn panic_complex() {
         let src = r#"
             constant %N = 2;
             namespace std::check(%N);
             let panic = 123;
             namespace F(%N);
-            let x = (|i| if i == 1 { std::check::panic([i, "text"]) } else { 9 })(1);
+            let concat = |a, b| a + b;
+            let arg: int = 1;
+            let x: int[] = (|i| if i == 1 { std::check::panic(concat("this ", "text")) } else { [9] })(arg);
         "#;
         parse_and_evaluate_symbol(src, "F.x");
     }
@@ -839,7 +842,7 @@ mod test {
             namespace std::check(%N);
             let panic = 123;
             namespace F(%N);
-            let x = std::check::panic("text");
+            let x: int = std::check::panic("text");
         "#;
         parse_and_evaluate_symbol(src, "F.x");
     }
@@ -871,9 +874,11 @@ mod test {
     #[test]
     pub fn zero_power_zero() {
         let src = r#"
-            let zpz = 0**0;
+        let zpz_int: int = 0**0;
+        let zpz_fe: fe = 0**0;
         "#;
-        assert_eq!(parse_and_evaluate_symbol(src, "zpz"), "1".to_string());
+        assert_eq!(parse_and_evaluate_symbol(src, "zpz_int"), "1".to_string());
+        assert_eq!(parse_and_evaluate_symbol(src, "zpz_fe"), "1".to_string());
     }
 
     #[test]

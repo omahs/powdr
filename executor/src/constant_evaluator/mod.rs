@@ -399,10 +399,12 @@ mod test {
     pub fn test_arrays() {
         let src = r#"
             let N: int = 10;
+            let n: fe = 10;
             namespace F(N);
+            let f = |i| i  + 20;
             col fixed alt = [0, 1, 0, 1, 0, 1] + [0]*;
             col fixed empty = [] + [0]*;
-            col fixed ref_other = [N-1, alt(1), 8] + [0]*;
+            col fixed ref_other = [n-1, f(1), 8] + [0]*;
         "#;
         let analyzed = analyze_string(src);
         assert_eq!(analyzed.degree(), 10);
@@ -423,7 +425,7 @@ mod test {
             constants[2],
             (
                 "F.ref_other".to_string(),
-                convert([9i32, 1, 8, 0, 0, 0, 0, 0, 0, 0].to_vec())
+                convert([9i32, 21, 8, 0, 0, 0, 0, 0, 0, 0].to_vec())
             )
         );
     }

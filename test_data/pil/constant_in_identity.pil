@@ -1,8 +1,8 @@
-constant %N = 16;
+let N: int = 16;
 
-namespace ConstantInIdentity(%N);
+namespace ConstantInIdentity(N);
     col fixed ISLAST(i) { match i {
-        %N - 1 => 1,
+        N - 1 => 1,
         _ => 0,
     } };
     col witness x;
@@ -13,4 +13,4 @@ namespace ConstantInIdentity(%N);
 
     (1-ISLAST) * (x' - x - offset) = 0;
 
-    public out = x(%N-1);
+    public out = x(N - 1);
