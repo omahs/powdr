@@ -7,6 +7,8 @@ use powdr_ast::{
 use powdr_number::GoldilocksField;
 use powdr_parser::{parse_type_name, parse_type_var_bounds};
 
+use lazy_static::lazy_static;
+
 /// Returns the type used for a reference to a declaration.
 pub fn type_for_reference(declared: &Type) -> Type {
     match declared {
@@ -29,6 +31,10 @@ pub fn type_for_reference(declared: &Type) -> Type {
         }),
         t => t.clone(),
     }
+}
+
+lazy_static! {
+    //static ref BUILTIN_SCHEMES: HashMap<String, TypeScheme> = Mutex::new(Default::default());
 }
 
 pub fn builtin_schemes() -> HashMap<String, TypeScheme> {

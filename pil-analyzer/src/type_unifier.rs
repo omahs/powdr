@@ -67,6 +67,9 @@ impl Unifier {
             (Type::Bottom, _) | (_, Type::Bottom) => Ok(()),
             (Type::TypeVar(n1), Type::TypeVar(n2)) if n1 == n2 => Ok(()),
             (Type::TypeVar(name), ty) | (ty, Type::TypeVar(name)) => {
+                // TODO this is the reason why we have to re-substitute for each
+                // recursive call.
+                // Maybe it would be better to store those and only apply them?
                 self.add_substitution(name, ty)
             }
             (Type::Function(f1), Type::Function(f2)) => {
@@ -75,8 +78,8 @@ impl Unifier {
                         "Function types have different number of parameters: {f1} and {f2}"
                     ))?;
                 }
-                for (p1, p2) in f1.params.iter().zip(f2.params.iter()) {
-                    self.unify_types(p1.clone(), p2.clone())?;
+                for (p1, p2) in f1.params.into_iter().zip(f2.params.into_iter()) {
+                    self.unify_types(p1, p2)?;
                 }
                 self.unify_types(*f1.value, *f2.value)
             }
@@ -94,8 +97,8 @@ impl Unifier {
                 }
                 t1.items
                     .into_iter()
-                    .zip(t2.items)
-                    .try_for_each(|(i1, i2)| self.unify_types(i1.clone(), i2.clone()))
+                    .zip(t2.items.into_iter())
+                    .try_for_each(|(i1, i2)| self.unify_types(i1, i2))
             }
 
             (ty1, ty2) => Err(format!("Cannot unify types {ty1} and {ty2}")),
