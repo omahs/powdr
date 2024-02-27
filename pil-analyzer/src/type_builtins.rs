@@ -34,11 +34,7 @@ pub fn type_for_reference(declared: &Type) -> Type {
 }
 
 lazy_static! {
-    //static ref BUILTIN_SCHEMES: HashMap<String, TypeScheme> = Mutex::new(Default::default());
-}
-
-pub fn builtin_schemes() -> HashMap<String, TypeScheme> {
-    [
+    static ref BUILTIN_SCHEMES: HashMap<String, TypeScheme> = [
         ("std::array::len", ("T", "T[] -> int")),
         ("std::check::panic", ("", "string -> !")),
         ("std::convert::expr", ("", "fe -> expr")),
@@ -57,55 +53,73 @@ pub fn builtin_schemes() -> HashMap<String, TypeScheme> {
             },
         )
     })
-    .collect()
+    .collect();
+    static ref BINARY_OPERATOR_SCHEMES: HashMap<BinaryOperator, TypeScheme> = [
+        (BinaryOperator::Add, ("T: Add", "T, T -> T")),
+        (BinaryOperator::Sub, ("T: Sub", "T, T -> T")),
+        (BinaryOperator::Mul, ("T: Mul", "T, T -> T")),
+        (BinaryOperator::Div, ("", "int, int -> int")),
+        (BinaryOperator::Mod, ("", "int, int -> int")),
+        (BinaryOperator::Pow, ("T: Pow", "T, int -> T")),
+        (BinaryOperator::ShiftLeft, ("", "int, int -> int")),
+        (BinaryOperator::ShiftRight, ("", "int, int -> int")),
+        (BinaryOperator::BinaryAnd, ("", "int, int -> int")),
+        (BinaryOperator::BinaryOr, ("", "int, int -> int")),
+        (BinaryOperator::BinaryXor, ("", "int, int -> int")),
+        (BinaryOperator::Less, ("T: Ord", "T, T -> bool")),
+        (BinaryOperator::LessEqual, ("T: Ord", "T, T -> bool")),
+        (BinaryOperator::Equal, ("T: Eq", "T, T -> bool")),
+        (BinaryOperator::Identity, ("", "expr, expr -> constr")),
+        (BinaryOperator::NotEqual, ("T: Eq", "T, T -> bool")),
+        (BinaryOperator::GreaterEqual, ("T: Ord", "T, T -> bool")),
+        (BinaryOperator::Greater, ("T: Ord", "T, T -> bool")),
+        (BinaryOperator::LogicalOr, ("", "bool, bool -> bool")),
+        (BinaryOperator::LogicalAnd, ("", "bool, bool -> bool")),
+    ]
+    .into_iter()
+    .map(|(op, (vars, ty))| {
+        (
+            op,
+            TypeScheme {
+                vars: parse_type_var_bounds(vars).unwrap(),
+                ty: parse_type_name::<GoldilocksField>(ty).unwrap().into(),
+            },
+        )
+    })
+    .collect();
+    static ref UNARY_OPERATOR_SCHEMES: HashMap<UnaryOperator, TypeScheme> = [
+        (UnaryOperator::Minus, ("T: Neg", "T -> T")),
+        (UnaryOperator::LogicalNot, ("", "bool -> bool")),
+        (UnaryOperator::Next, ("", "expr -> expr")),
+    ]
+    .into_iter()
+    .map(|(op, (vars, ty))| (
+        op,
+        TypeScheme {
+            vars: parse_type_var_bounds(vars).unwrap(),
+            ty: parse_type_name::<GoldilocksField>(ty).unwrap().into(),
+        }
+    ))
+    .collect();
+}
+
+pub fn builtin_schemes() -> &'static HashMap<String, TypeScheme> {
+    &BUILTIN_SCHEMES
 }
 
 pub fn binary_operator_scheme(op: BinaryOperator) -> TypeScheme {
-    let (vars, ty) = match op {
-        BinaryOperator::Add => ("T: Add", "T, T -> T"),
-        BinaryOperator::Sub => ("T: Sub", "T, T -> T"),
-        BinaryOperator::Mul => ("T: Mul", "T, T -> T"),
-        BinaryOperator::Div => ("", "int, int -> int"),
-        BinaryOperator::Mod => ("", "int, int -> int"),
-        BinaryOperator::Pow => ("T: Pow", "T, int -> T"),
-        BinaryOperator::ShiftLeft => ("", "int, int -> int"),
-        BinaryOperator::ShiftRight => ("", "int, int -> int"),
-        BinaryOperator::BinaryAnd => ("", "int, int -> int"),
-        BinaryOperator::BinaryOr => ("", "int, int -> int"),
-        BinaryOperator::BinaryXor => ("", "int, int -> int"),
-        BinaryOperator::Less => ("T: Ord", "T, T -> bool"),
-        BinaryOperator::LessEqual => ("T: Ord", "T, T -> bool"),
-        BinaryOperator::Equal => ("T: Eq", "T, T -> bool"),
-        BinaryOperator::Identity => ("", "expr, expr -> constr"),
-        BinaryOperator::NotEqual => ("T: Eq", "T, T -> bool"),
-        BinaryOperator::GreaterEqual => ("T: Ord", "T, T -> bool"),
-        BinaryOperator::Greater => ("T: Ord", "T, T -> bool"),
-        BinaryOperator::LogicalOr => ("", "bool, bool -> bool"),
-        BinaryOperator::LogicalAnd => ("", "bool, bool -> bool"),
-    };
-    TypeScheme {
-        vars: parse_type_var_bounds(vars).unwrap(),
-        ty: parse_type_name::<GoldilocksField>(ty).unwrap().into(),
-    }
+    BINARY_OPERATOR_SCHEMES[&op].clone()
 }
 
 pub fn unary_operator_scheme(op: UnaryOperator) -> TypeScheme {
-    let (vars, ty) = match op {
-        UnaryOperator::Minus => ("T: Neg", "T -> T"),
-        UnaryOperator::LogicalNot => ("", "bool -> bool"),
-        UnaryOperator::Next => ("", "expr -> expr"),
-    };
-    TypeScheme {
-        vars: parse_type_var_bounds(vars).unwrap(),
-        ty: parse_type_name::<GoldilocksField>(ty).unwrap().into(),
-    }
+    UNARY_OPERATOR_SCHEMES[&op].clone()
 }
 
-pub fn elementary_type_bounds(ty: &Type) -> Vec<&'static str> {
+pub fn elementary_type_bounds(ty: &Type) -> &'static [&'static str] {
     match ty {
-        Type::Bottom => vec![],
-        Type::Bool => vec![],
-        Type::Int => vec![
+        Type::Bottom => &[],
+        Type::Bool => &[],
+        Type::Int => &[
             "FromLiteral",
             "Add",
             "Sub",
@@ -117,7 +131,7 @@ pub fn elementary_type_bounds(ty: &Type) -> Vec<&'static str> {
             "Ord",
             "Eq",
         ],
-        Type::Fe => vec![
+        Type::Fe => &[
             "FromLiteral",
             "Add",
             "Sub",
@@ -127,8 +141,8 @@ pub fn elementary_type_bounds(ty: &Type) -> Vec<&'static str> {
             "Neg",
             "Eq",
         ],
-        Type::String => vec!["Add"],
-        Type::Expr => vec![
+        Type::String => &["Add"],
+        Type::Expr => &[
             "FromLiteral",
             "Add",
             "Sub",
@@ -138,11 +152,11 @@ pub fn elementary_type_bounds(ty: &Type) -> Vec<&'static str> {
             "Neg",
             "Eq",
         ],
-        Type::Constr => vec![],
-        Type::Col => vec![],
-        Type::Array(_) => vec!["Add"],
-        Type::Tuple(_) => vec![],
-        Type::Function(_) => vec![],
+        Type::Constr => &[],
+        Type::Col => &[],
+        Type::Array(_) => &["Add"],
+        Type::Tuple(_) => &[],
+        Type::Function(_) => &[],
         Type::TypeVar(_) => unreachable!(),
     }
 }
