@@ -23,11 +23,11 @@ machine PoseidonBN254(FIRSTBLOCK, operation_id) {
     // https://github.com/0xPolygonHermez/zkevm-proverjs/blob/main/pil/poseidong.pil
 
     // Number of field elements in the state
-    let STATE_SIZE = 3;
+    let STATE_SIZE: int = 3;
     // Number of output elements
-    let OUTPUT_SIZE = 1;
+    let OUTPUT_SIZE: int = 1;
     // Number of full rounds
-    let FULL_ROUNDS = 8;
+    let FULL_ROUNDS: int = 8;
     // Number of partial rounds (half of them before and half of them after the full rounds)
     let PARTIAL_ROUNDS = 57;
     let ROWS_PER_HASH = FULL_ROUNDS + PARTIAL_ROUNDS + 1;
