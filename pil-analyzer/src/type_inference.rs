@@ -79,8 +79,6 @@ impl TypeChecker {
         Ok(definitions
             .into_iter()
             .filter(|(_, (ty, _))| ty.is_none())
-            // TODO we have that multiple times, find a better solution.
-            .filter(|(name, _)| !builtin_schemes().contains_key(name))
             .map(|(name, _)| {
                 let mut scheme = self.declared_types[&name].clone();
                 assert!(scheme.vars.is_empty());
@@ -98,22 +96,6 @@ impl TypeChecker {
         definitions: &mut HashMap<String, (Option<TypeScheme>, Option<&mut Expression<T>>)>,
         expressions: &mut [(&mut Expression<T>, ExpectedType)],
     ) -> Result<HashMap<String, HashMap<String, Type>>, String> {
-        let builtins = builtin_schemes();
-        // TODO we should actually cross-check them with the definitions and not just override!
-        // TODO we should make self.types immutable after construction.
-        self.declared_types = builtins.clone();
-        // Add types from declarations. Type schemes are added without instantiating.
-        for (name, def) in definitions.iter() {
-            if builtins.contains_key(name) {
-                continue;
-            }
-            // This stores an (uninstantiated) type scheme for symbols with a declared
-            // polymorphic type and it creates a new (unquantified) type variable for
-            // symbols without declared type. This forces a single concrete type for the latter.
-            let ty = def.0.clone().unwrap_or_else(|| self.new_type_var().into());
-            self.declared_types.insert(name.clone(), ty);
-        }
-
         // TODO in order to fix type inference on recursive functions, we need to:
         // - collect all groups of functions that call each other recursively
         // - analyze each such group in an environment, where their type schemes
@@ -126,17 +108,35 @@ impl TypeChecker {
                 .map(|(n, (_, v))| (n.as_str(), v.as_deref())),
         );
 
+        // Remove builtins from definitions and check they types are correct.
+        for (name, ty) in builtin_schemes() {
+            if let Some((_, (Some(defined_ty), _))) = definitions.remove_entry(name) {
+                assert!(
+                    ty == &defined_ty,
+                    "Invalid type for built-in scheme {name}: {}",
+                    format_type_scheme_around_name(name, &Some(defined_ty))
+                );
+            }
+        }
+
+        // TODO we should make self.types immutable after construction.
+        self.declared_types = builtin_schemes().clone();
+        // Add types from declarations. Type schemes are added without instantiating.
+        for (name, def) in definitions.iter() {
+            // This stores an (uninstantiated) type scheme for symbols with a declared
+            // polymorphic type and it creates a new (unquantified) type variable for
+            // symbols without declared type. This forces a single concrete type for the latter.
+            let ty = def.0.clone().unwrap_or_else(|| self.new_type_var().into());
+            self.declared_types.insert(name.clone(), ty);
+        }
+
         // Now go through all symbols and derive types for the expressions.
         // While analyzing a symbol, we ignore its declared type (unless the
         // symbol is referenced). Unifying the declared type with the inferred
         // type is done at the end.
         for name in names {
-            // TODO this is too slow
-            if builtin_schemes().contains_key(&name) {
-                continue;
-            }
-
-            let (_, Some(value)) = definitions.get_mut(&name).unwrap() else {
+            // Ignore builtins (removed from definitions) and definitions without value.
+            let Some((_, Some(value))) = definitions.get_mut(&name) else {
                 continue;
             };
 
@@ -282,11 +282,8 @@ impl TypeChecker {
         type_var_mapping: &HashMap<String, HashMap<String, Type>>,
     ) -> Result<(), String> {
         let mut errors = vec![];
-        let builtins = builtin_schemes();
         definitions
             .iter_mut()
-            // TODO the builtin check is annoying, we have that multiple times.
-            .filter(|(name, _)| !builtins.contains_key(*name))
             .filter_map(|(name, (_, expr))| expr.as_mut().map(|expr| (name, expr)))
             .for_each(|(name, expr)| {
                 let empty_mapping = Default::default();

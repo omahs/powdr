@@ -149,6 +149,7 @@ impl<T: FieldElement> PILAnalyzer<T> {
                     } else {
                         let type_scheme = type_from_definition(symbol, value);
 
+                        // TOOD in order to type-check queries, we need enums.
                         if let Some(FunctionValueDefinition::Array(items)) = value {
                             // Expect all items in the arrays to be field elements.
                             expressions.extend(
