@@ -276,10 +276,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T, Condensate<T>> for &'a Condenser<T
                     e: value,
                     type_scheme,
                 })) => {
-                    let generic_args = type_scheme
-                        .as_ref()
-                        .map(|type_scheme| generic_arg_mapping(type_scheme, generic_args.iter()))
-                        .unwrap_or_default();
+                    let generic_args = generic_arg_mapping(type_scheme, generic_args);
                     evaluator::evaluate_generic(value, &generic_args, self)?
                 }
                 _ => Err(EvalError::Unsupported(

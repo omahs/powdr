@@ -118,12 +118,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T, Reference<'a>> for Symbols<'a, T> 
                         .expect("Witness columns should have been found by try_column_by_name()");
                     match value {
                         FunctionValueDefinition::Expression(TypedExpression { e, type_scheme }) => {
-                            let generic_args = type_scheme
-                                .as_ref()
-                                .map(|type_scheme| {
-                                    generic_arg_mapping(type_scheme, generic_args.iter())
-                                })
-                                .unwrap_or_default();
+                            let generic_args = generic_arg_mapping(type_scheme, generic_args);
                             evaluator::evaluate_generic(e, &generic_args, self)
                         }
                         _ => panic!(

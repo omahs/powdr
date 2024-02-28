@@ -79,24 +79,27 @@ pub fn evaluate_function_call<'a, T: FieldElement, C: Custom>(
     }
 }
 
-/// Turns a type scheme and a list of generic type arguments into a mapping
+/// Turns an optional type scheme and a list of generic type arguments into a mapping
 /// from type name to type.
-pub fn generic_arg_mapping<'a, I: ExactSizeIterator<Item = &'a Type>>(
-    type_scheme: &TypeScheme,
-    args: I,
+pub fn generic_arg_mapping(
+    type_scheme: &Option<TypeScheme>,
+    args: &[Type],
 ) -> HashMap<String, Type> {
+    let Some(type_scheme) = type_scheme else {
+        return Default::default();
+    };
     assert_eq!(
         type_scheme.vars.len(),
         args.len(),
         "Invalid number of generic arguments:\ngiven: {}\nexpected: {}.\nThis might happen if you call generic functions for array length type expressions.",
-        args.format(", "),
+        args.iter().format(", "),
         type_scheme.vars.vars().format(", ")
     );
     type_scheme
         .vars
         .vars()
         .cloned()
-        .zip(args.cloned())
+        .zip(args.iter().cloned())
         .collect()
 }
 
@@ -327,10 +330,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T, NoCustom> for Definitions<'a, T> {
         Ok(match self.0.get(&name.to_string()) {
             Some((_, value)) => match value {
                 Some(FunctionValueDefinition::Expression(TypedExpression { e, type_scheme })) => {
-                    let generic_args = type_scheme
-                        .as_ref()
-                        .map(|type_scheme| generic_arg_mapping(type_scheme, generic_args.iter()))
-                        .unwrap_or_default();
+                    let generic_args = generic_arg_mapping(type_scheme, generic_args);
                     evaluate_generic(e, &generic_args, self)?
                 }
                 _ => Err(EvalError::Unsupported(

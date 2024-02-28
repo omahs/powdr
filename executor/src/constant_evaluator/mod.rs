@@ -159,12 +159,7 @@ impl<'a, T: FieldElement> SymbolLookup<'a, T, FixedColumnRef<'a>> for Symbols<'a
                         e,
                         type_scheme,
                     })) => {
-                        let generic_args = type_scheme
-                            .as_ref()
-                            .map(|type_scheme| {
-                                generic_arg_mapping(type_scheme, generic_args.iter())
-                            })
-                            .unwrap_or_default();
+                        let generic_args = generic_arg_mapping(type_scheme, generic_args);
                         evaluator::evaluate_generic(e, &generic_args, self)?
                     }
                     Some(_) => Err(EvalError::Unsupported(
