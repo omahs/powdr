@@ -437,6 +437,7 @@ impl TypeChecker {
                     Some(TypeName::Int) => Type::Int,
                     Some(TypeName::Fe) => Type::Fe,
                     Some(TypeName::Expr) => Type::Expr,
+                    Some(TypeName::TypeVar(tv)) => Type::TypeVar(tv.clone()),
                     Some(t) => panic!("Type name annotation for number is not supported: {t}"),
                     None => {
                         let tv = self.new_type_var_name();
@@ -579,6 +580,17 @@ impl TypeChecker {
         expected_type: &Type,
         expr: &mut Expression<T>,
     ) -> Result<(), String> {
+        // For literals, we try to store the type here already.
+        // This avoids creating tons of type variables for large arrays.
+        if let Expression::Number(_, annotated_type @ None) = expr {
+            match expected_type {
+                Type::Int => *annotated_type = Some(TypeName::Int),
+                Type::Fe => *annotated_type = Some(TypeName::Fe),
+                Type::Expr => *annotated_type = Some(TypeName::Expr),
+                Type::TypeVar(tv) => *annotated_type = Some(TypeName::TypeVar(tv.clone())),
+                _ => {}
+            };
+        }
         let inferred_type = self.process_expression(expr)?;
         self.unifier
             .unify_types(inferred_type.clone(), expected_type.clone())
