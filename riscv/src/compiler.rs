@@ -450,7 +450,7 @@ machine Main {{
 
 {}
 
-let initial_memory = [
+let initial_memory: (fe, fe)[] = [
 {}
 ];
 
