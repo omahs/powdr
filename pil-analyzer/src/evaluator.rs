@@ -285,7 +285,6 @@ impl Display for NoCustom {
 #[derive(Clone, Debug)]
 pub struct Closure<'a, T, C> {
     pub lambda: &'a LambdaExpression<T, Reference>,
-
     pub environment: Vec<Rc<Value<'a, T, C>>>,
     pub generic_args: HashMap<String, Type>,
 }

@@ -24,7 +24,6 @@ use crate::{
 };
 
 // TODO we should check at the end that the literals are not too large for the inferred types.
-// TODO the performance is not really good yet.
 
 /// Infers types on all definitions and checks type-correctness for isolated
 /// expressions (from identities and arrays) where the expected type is given.
@@ -119,7 +118,6 @@ impl TypeChecker {
             }
         }
 
-        // TODO we should make self.types immutable after construction.
         self.declared_types = builtin_schemes().clone();
         // Add types from declarations. Type schemes are added without instantiating.
         for (name, def) in definitions.iter() {
@@ -197,7 +195,6 @@ impl TypeChecker {
                     }) if base.as_ref() == &Type::Expr => {
                         // An array of intermediate columns with fixed length. We ignore the length.
                         // The condenser will have to check the actual length.
-                        // TODO we could allow both here with some more code.
                         let arr = Type::Array(ArrayType {
                             base: base.clone(),
                             length: None,
@@ -243,12 +240,9 @@ impl TypeChecker {
         // that other types that should be concrete do not occur as type variables in the
         // inferred type scheme any more.
         let type_var_mapping = self.inferred_types.iter().map(|(name, inferred_type)| {
-            // TODO we could also compute the type var mapping here already,
-            // then we could use the names of the declared type vars in the error message.
             let inferred = self.to_type_scheme(inferred_type.clone());
             let declared = self.declared_types[name].clone().simplify_type_vars();
             if inferred != declared {
-                // TODO we could also collect those errors.
                 Err(format!(
                         "Inferred type scheme for symbol {name} does not match the declared type.\nInferred: let{} {name}: {}\nDeclared: let{} {name}: {}",
                         inferred.type_vars_to_string(),
@@ -591,7 +585,6 @@ impl TypeChecker {
             .map_err(|err| {
                 format!(
                     "Error checking sub-expression {expr}:\nExpected type: {}\nInferred type: {}\n{err}",
-                    // TODO should be do the substitution before the call to 'unify_types'?
                     self.substitute_to(expected_type.clone()),
                     self.substitute_to(inferred_type)
                 )
@@ -639,8 +632,10 @@ impl TypeChecker {
         Type::TypeVar(self.new_type_var_name())
     }
 
+    /// Creates a type scheme out of a type by making all unsubstituted
+    /// type variables generic.
+    /// TODO this is wrong for mutually recursive generic functions.
     fn to_type_scheme(&self, ty: Type) -> TypeScheme {
-        // TODO this generalizes all type vars - is that correct?
         let ty = self.substitute_to(ty);
         let vars = TypeBounds::new(ty.contained_type_vars().map(|v| {
             (
