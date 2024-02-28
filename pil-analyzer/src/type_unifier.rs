@@ -4,6 +4,15 @@ use powdr_ast::analyzed::types::Type;
 
 use crate::type_builtins::elementary_type_bounds;
 
+// TODO Optimization ideas:
+// the substitutions are applied a lot.
+// 1) One idea would be to extract a separate substitution map
+// that contains only the newly added substitutions during a unification run. Then we only have to use
+// that smaller map during the recursive substitutions.
+// 2) We could have a wrapper around type that stores which type variables are contained in it.
+// This way we can exit early if we know that all contained type vars are substituted.
+// This migt be especially useful inside add_substitution.
+
 #[derive(Default, Clone)]
 pub struct Unifier {
     /// Inferred type constraints (traits) on type variables.
@@ -24,30 +33,20 @@ impl Unifier {
             .unwrap_or_default()
     }
 
-    pub fn add_type_var_bound(&mut self, type_var: String, bound: String) {
-        self.type_var_bounds
-            .entry(type_var)
-            .or_default()
-            .insert(bound);
-    }
-
-    pub fn add_substitution(&mut self, type_var: String, ty: Type) -> Result<(), String> {
-        if ty.contains_type_var(&type_var) {
-            Err(format!(
-                "Cannot unify types {ty} and {type_var}: They depend on each other"
-            ))?
+    pub fn ensure_bound(&mut self, ty: &Type, bound: String) -> Result<(), String> {
+        if let Type::TypeVar(n) = ty {
+            self.add_type_var_bound(n.clone(), bound);
+            Ok(())
+        } else {
+            let bounds = elementary_type_bounds(ty);
+            if bounds.contains(&bound.as_str()) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "Type {ty} is required to satisfy trait {bound}, but does not."
+                ))
+            }
         }
-        let subs = [(type_var.clone(), ty.clone())].into();
-
-        for bound in self.type_var_bounds(&type_var) {
-            self.ensure_bound(&ty, bound)?;
-        }
-
-        self.substitutions
-            .values_mut()
-            .for_each(|t| t.substitute_type_vars(&subs));
-        self.substitutions.insert(type_var, ty);
-        Ok(())
     }
 
     pub fn unify_types(&mut self, mut inner: Type, mut expected: Type) -> Result<(), String> {
@@ -97,7 +96,7 @@ impl Unifier {
                 }
                 t1.items
                     .into_iter()
-                    .zip(t2.items.into_iter())
+                    .zip(t2.items)
                     .try_for_each(|(i1, i2)| self.unify_types(i1, i2))
             }
 
@@ -105,19 +104,29 @@ impl Unifier {
         }
     }
 
-    pub fn ensure_bound(&mut self, ty: &Type, bound: String) -> Result<(), String> {
-        if let Type::TypeVar(n) = ty {
-            self.add_type_var_bound(n.clone(), bound);
-            Ok(())
-        } else {
-            let bounds = elementary_type_bounds(ty);
-            if bounds.contains(&bound.as_str()) {
-                Ok(())
-            } else {
-                Err(format!(
-                    "Type {ty} is required to satisfy trait {bound}, but does not."
-                ))
-            }
+    fn add_type_var_bound(&mut self, type_var: String, bound: String) {
+        self.type_var_bounds
+            .entry(type_var)
+            .or_default()
+            .insert(bound);
+    }
+
+    fn add_substitution(&mut self, type_var: String, ty: Type) -> Result<(), String> {
+        if ty.contains_type_var(&type_var) {
+            Err(format!(
+                "Cannot unify types {ty} and {type_var}: They depend on each other"
+            ))?
         }
+        let subs = [(type_var.clone(), ty.clone())].into();
+
+        for bound in self.type_var_bounds(&type_var) {
+            self.ensure_bound(&ty, bound)?;
+        }
+
+        self.substitutions
+            .values_mut()
+            .for_each(|t| t.substitute_type_vars(&subs));
+        self.substitutions.insert(type_var, ty);
+        Ok(())
     }
 }
