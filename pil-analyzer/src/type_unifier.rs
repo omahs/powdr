@@ -35,8 +35,12 @@ impl Unifier {
 
     pub fn ensure_bound(&mut self, ty: &Type, bound: String) -> Result<(), String> {
         if let Type::TypeVar(n) = ty {
-            self.add_type_var_bound(n.clone(), bound);
-            Ok(())
+            if let Some(sub) = self.substitutions.get(n) {
+                self.ensure_bound(&sub.clone(), bound)
+            } else {
+                self.add_type_var_bound(n.clone(), bound);
+                Ok(())
+            }
         } else {
             let bounds = elementary_type_bounds(ty);
             if bounds.contains(&bound.as_str()) {
