@@ -695,4 +695,12 @@ namespace N(16);
         let formatted = analyze_string::<GoldilocksField>(input).to_string();
         assert_eq!(formatted, input);
     }
+
+    #[test]
+    #[should_panic = "Excess type variables in declaration: K\nExcess type variables in type: T"]
+    fn double_used_undeclared_type_var() {
+        let input = r#"let<K> x: T = 8;"#;
+        let formatted = analyze_string::<GoldilocksField>(input).to_string();
+        assert_eq!(formatted, input);
+    }
 }
