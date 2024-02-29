@@ -138,8 +138,7 @@ impl<T: FieldElement> PILAnalyzer<T> {
             .definitions
             .iter_mut()
             .map(|(name, (symbol, value))| {
-                (
-                    name.clone(),
+                let (type_scheme, expr) =
                     if let Some(FunctionValueDefinition::Expression(TypedExpression {
                         type_scheme,
                         e,
@@ -160,8 +159,8 @@ impl<T: FieldElement> PILAnalyzer<T> {
                             );
                         };
                         (type_scheme, None)
-                    },
-                )
+                    };
+                (name.clone(), (type_scheme, expr))
             })
             .collect();
         // Collect all expressions in identities.

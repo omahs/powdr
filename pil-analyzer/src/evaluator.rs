@@ -586,7 +586,7 @@ mod internal {
             ty.as_ref().cloned().unwrap_or_else(|| TypeName::Int)
         };
         Ok(match ty {
-            TypeName::Fe => Value::FieldElement(n.to_arbitrary_integer().into()),
+            TypeName::Fe => Value::FieldElement(*n),
             TypeName::Int => Value::Integer(n.to_arbitrary_integer().into()),
             TypeName::Expr => {
                 // TODO Once we lower `expr` to a type supported by evaluator natively,
@@ -781,7 +781,7 @@ mod test {
                 1 => 1,
                 _ => fib(i - 1) + fib(i - 2),
             };
-            let result: int = fib(20);
+            let result = fib(20);
         "#;
         assert_eq!(
             parse_and_evaluate_symbol(src, "Main.result"),
