@@ -46,9 +46,7 @@ impl Unifier {
             if bounds.contains(&bound.as_str()) {
                 Ok(())
             } else {
-                Err(format!(
-                    "Type {ty} is required to satisfy trait {bound}, but does not."
-                ))
+                Err(format!("Type {ty} does not satisfy trait {bound}."))
             }
         }
     }

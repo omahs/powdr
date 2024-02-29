@@ -462,7 +462,7 @@ namespace N(16);
     }
 
     #[test]
-    #[should_panic = "Type expr[] is required to satisfy trait Sub, but does not"]
+    #[should_panic = "Type expr[] does not satisfy trait Sub."]
     fn no_direct_array_references() {
         let input = r#"namespace N(16);
     col witness y[3];
