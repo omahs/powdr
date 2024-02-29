@@ -14,6 +14,8 @@ use powdr_pil_analyzer::evaluator::{
 };
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 
+mod compiler;
+
 /// Generates the fixed column values for all fixed columns that are defined
 /// (and not just declared).
 /// @returns the names (in source order) and the values for the columns.
@@ -21,6 +23,7 @@ use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 /// is `name[i]`.
 pub fn generate<T: FieldElement>(analyzed: &Analyzed<T>) -> Vec<(String, Vec<T>)> {
     let mut other_constants = HashMap::new();
+    compiler::generate(analyzed);
     for (poly, value) in analyzed.constant_polys_in_source_order() {
         if let Some(value) = value {
             // For arrays, generate values for each index,
