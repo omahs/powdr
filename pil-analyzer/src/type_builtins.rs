@@ -37,7 +37,7 @@ lazy_static! {
     static ref BUILTIN_SCHEMES: HashMap<String, TypeScheme> = [
         ("std::array::len", ("T", "T[] -> int")),
         ("std::check::panic", ("", "string -> !")),
-        ("std::convert::expr", ("", "fe -> expr")),
+        ("std::convert::expr", ("T: FromLiteral", "T -> expr")),
         ("std::convert::fe", ("T: FromLiteral", "T -> fe")),
         ("std::convert::int", ("T: FromLiteral", "T -> int")),
         ("std::debug::print", ("", "string -> constr[]")),
@@ -125,7 +125,6 @@ pub fn elementary_type_bounds(ty: &Type) -> &'static [&'static str] {
             "Sub",
             "Neg",
             "Mul",
-            "Div",
             "Mod",
             "Pow",
             "Ord",
