@@ -100,7 +100,7 @@ ASM to PIL has two steps: ROM generation and reduction to constrained.
 
 Rom generation generates a single ROM for each virtual machine using the following process:
 - Find the maximum number of inputs among all functions. Introduce as many input registers. Do the same for outputs, introducing output registers
-- Replace references to the function arguments by references to these input registers.
+- Replace references to the function arguments with references to these input registers.
 - Pad all return statements with zeroes up to the number of output registers.
 - Inline all function bodies, arbitrarily sorted by name, adding a label before each one.
 - Add an infinite loop also behind a label
