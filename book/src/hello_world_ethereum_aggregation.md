@@ -28,7 +28,7 @@ This will take a couple minutes if you decide to compute it yourself:
 powdr setup 4194304 --backend halo2 --field bn254
 ```
 
-We can re-use the new large `params.bin` for both initial and recursive proofs.
+We can reuse the new large `params.bin` for both initial and recursive proofs.
 Let's start by re-computing our Poseidon proof like in the [first example](./hello_world.md),
 but using our new setup file:
 ```console
