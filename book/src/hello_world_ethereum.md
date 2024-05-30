@@ -23,7 +23,7 @@ SNARK that uses Keccak. The option `-f` forces overwriting the compiled files
 that have been generated before, which is useful if you are running the examples
 on the same directory as the previous example.
 
-When the a proof is generated, it is verified on a simulated EVM transaction as well!
+When the proof is generated, it is verified on a simulated EVM transaction as well!
 
 ```console
 Verifying SNARK in the EVM...
